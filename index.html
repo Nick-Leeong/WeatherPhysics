@@ -1,0 +1,312 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Weather / Physics</title>
+		<script 			src="https://d309knd7es5f10.cloudfront.net/createjs.min.js">
+		</script>
+		<script>
+			const zon = true; // set to false to turn off console messages from zim
+			const zns = false; // set to true to require zim namespace - eg. new Frame()
+		</script>
+		<script src="https://d309knd7es5f10.cloudfront.net/zim_6.9.0.js"></script>
+		<!-- use zimjs.com/distill for minified individual functions! -->
+		<script src="https://d309knd7es5f10.cloudfront.net/Box2dWeb-2.1.a.3.min.js"></script>
+		<script src="physics_0.1.2.js"></script>
+		<script>
+			const frame = new Frame("fit", 1024, 768);
+			frame.on("ready", function() {
+				const stage = frame.stage;
+				const stageW = frame.width;
+				const stageH = frame.height;
+				frame.outerColor = "#444";
+				frame.color = "#ddd";
+				const api = "2620022825ac5cee09b496360bda1280";
+				const holder = new Container(stageW , stageH)
+					.pos(100, 100)
+					.center(stage);
+
+				const page1 = new Container( stageW , stageH);
+				//new Rectangle( stageW , stageH, frame.purple).addTo(page1);
+				const	arrowR = new Triangle({a:50, color:"white"})
+						.rot(90)
+						.reg(null, stageW*.4)
+						.pos(stageW/2, stageH/2)
+						.addTo(page1);
+				const page2 = new Container( stageW , stageH);
+				//new Rectangle( stageW , stageH, frame.green).addTo(page2);
+				const arrowL = new Triangle({a:50, color:"white"})
+						.rot(270)
+						.reg(null, stageW*.4)
+						.pos(stageW/2, stageH/2)
+						.addTo(page2);
+
+				const pages = new Pages({
+				   holder:holder,
+				   pages:[
+				      {page:page1, swipe:[null,page2,"alert","alert"]}
+					  ,{page:page2, swipe:[page1,null,null,null]}
+				   ],
+				   transition:"slide",
+				   speed:400
+				}).addTo(holder);
+
+				const hotSpots = new HotSpots([
+					{page:page1, rect:arrowR, call:function(){pages.go(page2, "right");}},
+					{page:page2, rect:arrowL, call:function(){pages.go(page1, "left");}}
+				]);
+
+				pages.on("alert", function(e) {
+					pane.show();
+				});
+				//end of page set up
+
+				//for testing center positions on page1/page2
+				// new Rectangle(5, 5, "red").addTo(page2).pos(page2.width/2, 0);
+
+				//const for physics
+				const borders = {x:0, y:0, width:page2.width, height:page2.height};
+				//set world parameters
+				const gravity = 10;
+				const physics = new zim.Physics(frame, borders, gravity);
+				//OPTIONAL debug
+				//physics.debug(); //Turns on debug mode
+				physics.drag();
+				let windSpe, windDeg, condition, sunrise, sunset, city, country;
+				let currentTime = new Date().getTime() / 1000; //must returns milliseconds and not seconds, soo divid by 1000
+
+				//run init
+				weather();
+				function weather() {
+					let location, request, weather;
+					if (navigator.geolocation) {
+						navigator.geolocation.getCurrentPosition(position, noPosition)
+					} else {
+				        console.log("Geolocation is not supported by this browser.");
+				    }
+					function position(position){
+						location = position.coords;
+						let oReq = new XMLHttpRequest();
+						oReq.addEventListener("load", function(){
+							weather = JSON.parse (this.responseText);
+							windSpe = weather.wind.speed;
+							windDeg = weather.wind.deg;
+							condition = weather.weather[0].main;
+							sunrise = weather.sys.sunrise;
+							sunset = weather.sys.sunset;
+							city = weather.name;
+							country = weather.sys.country;
+							createWorld();
+						});
+						oReq.open("GET", "http://api.openweathermap.org/data/2.5/weather?lat=" + location.latitude + "&lon=" + location.longitude + "&APPID=" + api);
+						oReq.send();
+					}
+					function noPosition(error){
+						//send them to toronto if permission denied
+						let oReq = new XMLHttpRequest();
+						oReq.addEventListener("load", function(){
+							weather = JSON.parse (this.responseText);
+							windSpe = weather.wind.speed;
+							windDeg = weather.wind.deg;
+							condition = weather.weather[0].main;
+							sunrise = weather.sys.sunrise;
+							sunset = weather.sys.sunset;
+							city = weather.name + "(Default)";
+							country = weather.sys.country;
+							console.log(sunrise);
+							console.log(sunset);
+							console.log(new Date(sunrise));
+							console.log(new Date(sunset));
+							createWorld();
+						});
+						oReq.open("GET", "http://api.openweathermap.org/data/2.5/weather?q=Toronto&APPID=" + api);
+						oReq.send();
+					}
+				}
+				createCharacter();
+
+				function createWorld(){
+					if(sunrise < currentTime && currentTime < sunset){
+						frame.color = "#87ceeb";
+					} else if (currentTime < sunrise || sunset < currentTime){
+						frame.color = "#6a5acd";
+					}
+					let parsedSunrise = new Date(sunrise * 10000).getHours() + ":" + new Date(sunrise * 1000).getMinutes();
+					let parsedSunset = new Date(sunset * 1000).getHours() + ":" + new Date(sunset * 1000).getMinutes();
+					let parsedData =
+						"City: " + city + " , " + country + "\n" +
+						"Condition: " + condition + "\n" +
+						"Wind: " + windSpe + "m/s \n" +
+						"Sunrise: " + parsedSunrise + "\n" +
+						"Sunset: " + parsedSunset + "\n"
+
+					const info = new Label(parsedData, 50).center(page1);
+
+					//wind factor
+					interval(1000, function(){
+						//impulse right
+						if(windDeg < 180){
+							const windX = page2;
+							const windY = stageH/2;
+							const sX = (windX-headPhysics.x)*(windSpe / 10);
+							const sY = (windY-headPhysics.y)*(windSpe / 10);
+							headPhysics.ApplyImpulse(new b2Vec2(sX, sY), headPhysics.GetWorldCenter());
+						//impulse left
+						}else if(windDeg > 180){
+							const windX = 0;
+							const windY = stageH/2;
+							const sX = (windX-headPhysics.x)*(windSpe / 10);
+							const sY = (windY-headPhysics.y)*(windSpe / 10);
+							headPhysics.ApplyImpulse(new b2Vec2(sX, sY), headPhysics.GetWorldCenter());
+						}
+					});
+
+					weather(condition);
+					function weather(condition){
+						//clouldy, clear?
+						if(condition == "Thunderstorm"){
+							const rainArray = [];
+							let rainX = rand(0, stageW); //random the width
+							let lightening = rand(3000,4000);
+							let backgroundColor = frame.color
+							let rainRadius = 10;
+							interval(300, function(obj){
+								//run anInterval for rain fall
+								rainArray[obj.count] = new Circle(rainRadius, "#8dd8dd").addTo(page2).pos(rainX, 0);
+								rainArray[obj.count].animate({
+									obj:{y:stageH},
+									time:1000,
+									call: function(){
+										rainArray.shift();
+									}
+								});
+								rainX = rand(0, stageW);
+							});
+							interval(1000, function (){
+								timeout(1000, function(){
+									if(frame.color == "#ffff99"){
+										frame.color = backgroundColor;
+									}else if(frame.color == backgroundColor){
+										frame.color = "#ffff99";
+									}
+									lightening = rand(4000,6000);
+								});
+							});
+
+
+						}else if(condition == "Rain" || condition == "Drizzle"){
+							const rainArray = [];
+							let rainX = rand(0, page2.width); //random the width
+							let rainRadius = 10;
+							interval(300, function(obj){
+								//run anInterval for rain fall
+								rainArray[obj.count] = new Circle(rainRadius, "#0052cc").addTo(page2).pos(rainX, 0);
+								rainArray[obj.count].animate({
+									obj:{y:stageH},
+									time:1000,
+									call: function(){
+										rainArray.shift();
+									}
+								});
+								rainX = rand(0, stageW);
+							});
+						}else if(condition == "Snow"){
+							const snowArray = [];
+							let snowX = rand(0, stageW); //random the width
+							let snowRadius = 10;
+							//run anInterval for snow fall
+							interval(300, function(obj){
+								snowArray[obj.count] = new Circle(snowRadius, "white").addTo(page2).pos(snowX, 0);
+								snowArray[obj.count].animate({
+									obj:{y:stageH},
+									time:1000,
+									call: function(){
+										snowArray.shift();
+									}
+								});
+								snowX = rand(0, stageW);
+							});
+						}else if (condition == "Clear"){
+							console.log("clear");
+						}else if (condition == "Cloud"){
+							console.log("cloud");
+							const cloudArray = [];
+							let clouldY = rand(0, stageH);
+
+						}
+					}//end of weather
+
+					//resizes function
+					frame.on("resize", function() {
+						physics.updateDebug();
+					});
+				}
+				//create the Character
+				function createCharacter(){
+					//variables
+					const radius = stageW/10;
+					const bodyWidth = stageW/33;
+					const bodyHeight = stageH/2;
+					const b2WeldJointDef = Box2D.Dynamics.Joints.b2WeldJointDef;
+					const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
+
+					//make the circlePhysics
+					headPhysics = physics.makeCircle({
+						radius:radius, //size
+						dynamic:true, //will it move
+						restitution:10, //return to oringal pos
+						density: 1, //weight
+						angular: 2, // rotational damping
+						linear:2, // linear damping
+						friction:1
+					});
+					//Make the circle
+					const head = new Circle(radius, "black").center(page2).mov(0, 0);
+					headPhysics.x = head.x;
+					headPhysics.y = head.y;
+					//link the physics(circlePhysics) and circle
+					physics.addMap(headPhysics, head);
+
+					//body(visual only)
+					const body = new Rectangle(bodyWidth, bodyHeight, "black").reg(bodyWidth/2, 0).addTo(head, 0);
+
+					//TODO arms?
+
+					//make pivot
+					const pivot = physics.makeCircle({
+						radius:radius/2,
+						dynamic: false
+					});
+					pivot.x = page2.width / 2;
+					pivot.y = page2.height;
+
+					//joint keeping the headPhysics grounded in the center
+					const revoluteJoint = new b2RevoluteJointDef();
+					revoluteJoint.Initialize(headPhysics, pivot, pivot.GetWorldCenter());
+					physics.world.CreateJoint(revoluteJoint);
+
+					//normalization factor
+					interval(500, function(){
+						const factor = 2;
+						const centerX = stageW/2;
+						const centerY = stageH/2;
+						const sX = (centerX-headPhysics.x)*factor;
+						const sY = (centerY-headPhysics.y)*factor;
+						if(headPhysics.x != centerX & headPhysics.y != centerY){
+							headPhysics.ApplyImpulse(new b2Vec2(sX, sY), headPhysics.GetWorldCenter());
+						}
+					});
+				}
+				//end of createCharacter
+				stage.update();
+			}); // end of ready
+		</script>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimal-ui" />
+
+	</head>
+
+	<body>
+	<!-- canvas with id="myCanvas" is made by zim Frame -->
+	</body>
+</html>
