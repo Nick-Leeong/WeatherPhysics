@@ -14,7 +14,13 @@
 		<script src="https://d309knd7es5f10.cloudfront.net/Box2dWeb-2.1.a.3.min.js"></script>
 		<script src="physics_0.1.2.js"></script>
 		<script>
-			const frame = new Frame("full", 1024, 768);
+		// SCALING OPTIONS
+// scaling can have values as follows with full being the default
+// "fit"	sets canvas and stage to dimensions and scales to fit inside window size
+// "outside"	sets canvas and stage to dimensions and scales to fit outside window size
+// "full"	sets stage to window size with no scaling
+// "tagID"	add canvas to HTML tag of ID - set to dimensions if provided - no scaling
+			const frame = new Frame("full");
 			frame.on("ready", function() {
 				const stage = frame.stage;
 				const stageW = frame.width;
