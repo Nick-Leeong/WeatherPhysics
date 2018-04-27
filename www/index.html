@@ -34,7 +34,7 @@
 					.pos(100, 100)
 					.center(stage);
 
-				const page1 = new Container( stageW , stageH);
+				const page1 = new Container(stageW , stageH);
 				//new Rectangle( stageW , stageH, frame.purple).addTo(page1);
 				const	arrowR = new Triangle({a:50, color:"white"})
 						.rot(90)
@@ -69,17 +69,14 @@
 				});
 				//end of page set up
 
-				//for testing center positions on page1/page2
-				// new Rectangle(5, 5, "red").addTo(page2).pos(page2.width/2, 0);
-
 				//const for physics
 				const borders = {x:0, y:0, width:page2.width, height:page2.height};
 				//set world parameters
 				const gravity = 10;
 				const physics = new zim.Physics(frame, borders, gravity);
 				//OPTIONAL debug
-				//physics.debug(); //Turns on debug mode
-				physics.drag();
+				physics.debug(); //Turns on debug mode
+				//physics.drag();
 				let windSpe, windDeg, condition, sunrise, sunset, city, country;
 				let currentTime = new Date().getTime() / 1000; //must returns milliseconds and not seconds, soo divid by 1000
 
@@ -104,6 +101,14 @@
 							sunset = weather.sys.sunset;
 							city = weather.name;
 							country = weather.sys.country;
+							console.log(weather);
+							console.log(windSpe);
+							console.log(windDeg);
+							console.log(condition);
+							console.log(sunrise);
+							console.log(sunset);
+							console.log(city);
+							console.log(country);
 							createWorld();
 						});
 						oReq.open("GET", "http://api.openweathermap.org/data/2.5/weather?lat=" + location.latitude + "&lon=" + location.longitude + "&APPID=" + api);
@@ -121,10 +126,14 @@
 							sunset = weather.sys.sunset;
 							city = weather.name + "(Default)";
 							country = weather.sys.country;
+							console.log(weather);
+							console.log(windSpe);
+							console.log(windDeg);
+							console.log(condition);
 							console.log(sunrise);
 							console.log(sunset);
-							console.log(new Date(sunrise));
-							console.log(new Date(sunset));
+							console.log(city);
+							console.log(country);
 							createWorld();
 						});
 						oReq.open("GET", "http://api.openweathermap.org/data/2.5/weather?q=Toronto&APPID=" + api);
@@ -154,7 +163,7 @@
 					interval(1000, function(){
 						//impulse right
 						if(windDeg < 180){
-							const windX = page2;
+							const windX = page2.width;
 							const windY = stageH/2;
 							const sX = (windX-headPhysics.x)*(windSpe / 10);
 							const sY = (windY-headPhysics.y)*(windSpe / 10);
@@ -249,7 +258,6 @@
 						physics.updateDebug();
 					});
 				}
-				//create the Character
 				function createCharacter(){
 					//variables
 					const radius = stageW/10;
@@ -304,6 +312,8 @@
 							headPhysics.ApplyImpulse(new b2Vec2(sX, sY), headPhysics.GetWorldCenter());
 						}
 					});
+					//testing
+					// new Rectangle(5, 5, "red").addTo(page2).pos(page2.width/2, 0);
 				}
 				//end of createCharacter
 				stage.update();
